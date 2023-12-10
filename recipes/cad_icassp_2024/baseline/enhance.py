@@ -245,19 +245,29 @@ def enhance(config: DictConfig) -> None:
     # and process each stem for the listener
     previous_song = ""
     num_scenes = len(scene_listener_pairs)
+
     for idx, scene_listener_pair in enumerate(scene_listener_pairs, 1):
         scene_id, listener_id = scene_listener_pair
 
         scene = scenes[scene_id]
+        # Get the listener's audiogram
+        listener = listener_dict[listener_id]
+
         song_name = f"{scene['music']}-{scene['head_loudspeaker_positions']}"
+        remix_filename = Path(enhanced_folder) / f"{scene_id}_{listener.id}_remix.flac"
+        
+        if remix_filename.is_file():
+            logger.info(
+                f"{scene_id}_{listener.id}_remix.flac already exists "
+                f"Skipping {scene_id}: {song_name} for listener {listener_id}"
+            )
+            continue
 
         logger.info(
             f"[{idx:03d}/{num_scenes:03d}] "
             f"Processing {scene_id}: {song_name} for listener {listener_id}"
         )
-        # Get the listener's audiogram
-        listener = listener_dict[listener_id]
-
+        
         # Read the mixture signal
         # Convert to 32-bit floating point and transpose
         # from [samples, channels] to [channels, samples]
@@ -292,12 +302,10 @@ def enhance(config: DictConfig) -> None:
             apply_compressor=config.apply_compressor,
         )
 
-        filename = Path(enhanced_folder) / f"{scene_id}_{listener.id}_remix.flac"
-
-        filename.parent.mkdir(parents=True, exist_ok=True)
+        remix_filename.parent.mkdir(parents=True, exist_ok=True)
         save_flac_signal(
             signal=enhanced_signal,
-            filename=filename,
+            filename=remix_filename,
             signal_sample_rate=config.sample_rate,
             output_sample_rate=config.remix_sample_rate,
             do_clip_signal=True,
