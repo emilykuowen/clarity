@@ -7,7 +7,7 @@ import json
 import logging
 import warnings
 from pathlib import Path
-
+import csv
 import hydra
 import numpy as np
 import pyloudnorm as pyln
@@ -187,6 +187,20 @@ def load_reference_stems(music_dir: str | Path) -> tuple[dict[str, ndarray], nda
     return reference_stems, read_signal(Path(music_dir) / "mixture.wav")
 
 
+def is_score_calculated(csv_filename, scene_id, listener_id):
+    with open(csv_filename, 'r') as csv_file:
+        csv_reader = csv.reader(csv_file)
+
+        next(csv_reader, None)
+
+        for row in csv_reader:
+            # Check if the score of the scene and listener combination is already calculated
+            if row[0] == scene_id and row[2] == listener_id:
+                return True
+
+    return False
+
+
 @hydra.main(config_path="", config_name="config")
 def run_calculate_aq(config: DictConfig) -> None:
     """Evaluate the enhanced signals using the HAAQI metric."""
@@ -229,7 +243,6 @@ def run_calculate_aq(config: DictConfig) -> None:
             f"scores_{config.evaluate.batch + 1}-{config.evaluate.batch_size}.csv",
             header_columns=scores_headers,
         )
-    # results_file.write_header()
 
     scene_listener_pairs = make_scene_listener_list(
         scenes_listeners, config.evaluate.small_test
@@ -240,6 +253,13 @@ def run_calculate_aq(config: DictConfig) -> None:
     num_scenes = len(scene_listener_pairs)
     for idx, scene_listener_pair in enumerate(scene_listener_pairs, 1):
         scene_id, listener_id = scene_listener_pair
+
+        if is_score_calculated("scores_baseline.csv", scene_id, listener_id):
+            logger.info(
+                f"Skipping {scene_id} for listener {listener_id} "
+                f"HAAQI score already calculated"
+            )
+            continue
 
         scene = scenes[scene_id]
         song_name = f"{scene['music']}-{scene['head_loudspeaker_positions']}"
