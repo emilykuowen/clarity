@@ -183,7 +183,7 @@ def load_reference_stems(music_dir: str | Path) -> tuple[dict[str, ndarray], nda
     return reference_stems, read_signal(Path(music_dir) / "mixture.wav")
 
 
-@hydra.main(config_path="", config_name="config")
+@hydra.main(config_path="", config_name="config_valid")
 def generate_reference(config: DictConfig) -> None:
     """Generate the reference tracks."""
     
